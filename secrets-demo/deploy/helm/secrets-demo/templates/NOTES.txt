@@ -1,0 +1,10 @@
+secrets-demo "{{ .Release.Name }}" installed (scenario: {{ .Values.scenario }}, SPIFFE: {{ .Values.spiffe.enabled }}).
+
+Web UI : http://<any-node-ip>:{{ .Values.web.nodePort | default "<nodePort>" }}
+API    : http://<any-node-ip>:{{ .Values.api.nodePort | default "<nodePort>" }}/   (GraphiQL; POST /graphql, WS /graphql/ws)
+{{- if .Values.spiffe.enabled }}
+
+SPIFFE is ON. The API's NodePort now rejects requests without a valid JWT-SVID for audience "{{ .Values.spiffe.audience }}".
+Your SVID issuer must issue identities to both workloads (service accounts {{ include "sd.apiSA" . }} and {{ include "sd.webSA" . }}).
+The API only accepts: {{ include "sd.allowedIds" . | fromYamlArray | join ", " }}
+{{- end }}

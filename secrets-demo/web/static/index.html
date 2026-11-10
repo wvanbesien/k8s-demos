@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secrets Demo</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1c2128;--mut:#6a737d;--line:#e1e4e8;--acc:#2563eb;--ok:#15803d;--okbg:#dcfce7;--bad:#b91c1c;--badbg:#fee2e2;--warn:#a16207;--warnbg:#fef3c7;--code:#f1f3f5}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--mut:#8b949e;--line:#30363d;--acc:#58a6ff;--ok:#56d364;--okbg:#12361d;--bad:#ff7b72;--badbg:#3d1416;--warn:#e3b341;--warnbg:#3a2f0b;--code:#0d1117}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:16px 24px;background:var(--card);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+header h1{font-size:18px;margin:0}header .sp{flex:1}
+main{max-width:1200px;margin:0 auto;padding:16px 24px 48px}
+nav{display:flex;gap:4px;margin:16px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--mut);padding:8px 14px;font:inherit;cursor:pointer}
+nav button.on{color:var(--acc);border-color:var(--acc);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px;overflow:auto}
+.card h2{font-size:15px;margin:0 0 10px}.card h3{font-size:13px;margin:14px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:12px}}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--mut);font-weight:600}
+code,pre,.mono{font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+pre{background:var(--code);border-radius:6px;padding:10px;margin:0;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.val{background:var(--code);padding:2px 6px;border-radius:4px;word-break:break-all}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--code);border:1px solid var(--line);white-space:nowrap}
+.badge.ok{background:var(--okbg);color:var(--ok);border-color:transparent}.badge.bad{background:var(--badbg);color:var(--bad);border-color:transparent}.badge.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.banner{padding:10px 14px;border-radius:6px;margin-bottom:16px;background:var(--badbg);color:var(--bad);display:none;word-break:break-word}
+.banner.show{display:block}
+button.act,select,input{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+button.act{cursor:pointer;background:var(--acc);color:#fff;border-color:var(--acc)}button.act.sec{background:var(--card);color:var(--fg);border-color:var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.mut{color:var(--mut)}.big{font-size:22px;padding:12px 14px;display:block}
+.flash{animation:fl 1.5s}@keyframes fl{from{background:var(--warnbg)}to{background:transparent}}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}dt{color:var(--mut)}dd{margin:0;word-break:break-all}
+.hist li{margin-bottom:6px}.hist{padding-left:18px;margin:0}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Secrets Demo</h1><span id="scen" class="badge"></span><span id="sp" class="badge"></span>
+  <span class="sp"></span><span class="mut mono" id="pod"></span>
+</header>
+<main>
+<nav id="tabs"></nav>
+<div id="banner" class="banner"></div>
+
+<section id="t-secrets">
+  <div class="card">
+    <div class="row"><h2 style="margin:0">Secrets exposed to the API pod</h2><span class="sp" style="flex:1"></span>
+      <span class="mut" id="stamp"></span><button class="act sec" id="refresh">Refresh</button></div>
+    <div id="secrets"></div>
+  </div>
+</section>
+
+<section id="t-live" hidden>
+  <div class="card">
+    <h2>Subscribe to a secret</h2>
+    <p class="mut">Uses the API's GraphQL <code>secretValue</code> subscription. Change the secret at source (e.g. rotate it in the secrets manager) and the new value appears here without a refresh.</p>
+    <div class="row"><select id="subsel"></select><input id="subname" placeholder="or type a secret name" size="28">
+      <button class="act" id="subgo">Subscribe</button><button class="act sec" id="substop">Stop</button><span id="substate" class="badge">idle</span></div>
+    <span class="mut">Current value</span><code class="val big" id="subval">–</code>
+    <h3>Change history</h3><ol class="hist" id="subhist" reversed></ol>
+  </div>
+</section>
+
+<section id="t-config" hidden><div class="grid">
+  <div class="card"><h2>Web front end configuration</h2><div id="cfg-web"></div></div>
+  <div class="card"><h2>API configuration</h2><div id="cfg-api"></div></div>
+</div></section>
+
+<section id="t-spiffe" hidden>
+  <div class="card"><h2>SPIFFE</h2><div id="sp-status"></div>
+    <div class="row" style="margin-top:12px"><button class="act" id="probe">Run authorisation test against the API</button><button class="act sec" id="sp-reload">Reload identity</button></div>
+    <div id="probes"></div></div>
+  <div class="grid" id="sp-grid"></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+function el(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==='class')e.className=v;else e.setAttribute(k,v)}
+  for(const c of kids.flat())if(c!=null)e.append(c.nodeType?c:document.createTextNode(String(c)));return e}
+const badge=(t,c)=>el('span',{class:'badge '+(c||'')},t);
+const pre=o=>el('pre',{},typeof o==='string'?o:JSON.stringify(o,null,2));
+function dl(obj){const d=el('dl');for(const[k,v]of Object.entries(obj)){if(v==null||v==='')continue;d.append(el('dt',{},k),el('dd',{class:'mono'},typeof v==='object'?JSON.stringify(v):v))}return d}
+async function gql(query,variables){const r=await fetch('/bff/graphql',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query,variables})});return r.json()}
+function banner(msg){const b=$('#banner');b.textContent=msg||'';b.classList.toggle('show',!!msg)}
+function apiError(r){
+  if(!r.ok) return `API returned HTTP ${r.status||'(no response)'}: ${r.body?.error||JSON.stringify(r.body)}${r.body?.hint?'  — '+r.body.hint:''}`;
+  if(r.body?.errors) return 'GraphQL error: '+r.body.errors.map(e=>e.message).join('; ');
+  return null}
+
+// ---- tabs
+const TABS=[['secrets','Secrets'],['live','Live secret (subscription)'],['config','Configuration'],['spiffe','SPIFFE']];
+TABS.forEach(([id,label])=>{const b=el('button',{'data-t':id},label);b.onclick=()=>show(id);$('#tabs').append(b)});
+function show(id){TABS.forEach(([t])=>{$('#t-'+t).hidden=t!==id});document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===id));
+  try{history.replaceState(null,'','#'+id)}catch{}
+  if(id==='config')loadConfig();if(id==='spiffe')loadSpiffe()}
+
+// ---- secrets
+let webCfg=null,secretNames=[];
+const SEC_Q='{ secrets { name method kind location value exists error sizeBytes sha256 lastModified } }';
+async function loadSecrets(){
+  const r=await gql(SEC_Q);const err=apiError(r);banner(err);
+  if(err){$('#secrets').replaceChildren(el('p',{class:'mut'},'No secrets available.'));return}
+  const list=r.body.data.secrets;secretNames=list.map(s=>s.name);fillSel();
+  const groups={};list.forEach(s=>(groups[s.method||'(unlabelled)']??=[]).push(s));
+  const root=el('div');
+  for(const[m,items]of Object.entries(groups)){
+    root.append(el('h3',{},m));
+    const t=el('table');t.append(el('tr',{},...['Name','Type','Location','Value','Size','Last modified'].map(h=>el('th',{},h))));
+    for(const s of items){t.append(el('tr',{},el('td',{class:'mono'},s.name),el('td',{},badge(s.kind.toLowerCase())),
+      el('td',{class:'mono'},s.location),
+      el('td',{},s.exists?el('code',{class:'val'},s.value):badge('not available','bad'),s.error?el('div',{class:'mut'},s.error):null),
+      el('td',{},s.sizeBytes??''),el('td',{class:'mut'},s.lastModified?new Date(s.lastModified).toLocaleString():'–')))}
+    root.append(t)}
+  if(!list.length)root.append(el('p',{class:'mut'},'The API has no secrets configured. Set secrets / secretDirs / envPrefixes in its ConfigMap.'));
+  $('#secrets').replaceChildren(root);$('#stamp').textContent='updated '+new Date().toLocaleTimeString()}
+$('#refresh').onclick=loadSecrets;
+
+// ---- subscription
+let es=null;
+function fillSel(){const s=$('#subsel'),cur=s.value;s.replaceChildren(...secretNames.map(n=>el('option',{value:n},n)));if(secretNames.includes(cur))s.value=cur}
+function state(t,c){const b=$('#substate');b.textContent=t;b.className='badge '+(c||'')}
+function stopSub(){if(es){es.close();es=null}state('idle')}
+$('#substop').onclick=stopSub;
+$('#subgo').onclick=()=>{
+  stopSub();const name=$('#subname').value.trim()||$('#subsel').value;if(!name)return;
+  $('#subhist').replaceChildren();$('#subval').textContent='–';state('connecting…','warn');
+  es=new EventSource('/bff/subscribe?name='+encodeURIComponent(name));
+  es.addEventListener('status',e=>{const d=JSON.parse(e.data);if(d.state==='subscribed')state('subscribed'+(d.sentCredentials?' (with SPIFFE JWT-SVID)':''),'ok');
+    else{state('closed','warn');es.close();es=null}});
+  es.addEventListener('failure',e=>{const d=JSON.parse(e.data);state('failed','bad');banner('Subscription failed: '+(d.status?`HTTP ${d.status} — `:'')+(typeof d.error==='string'?d.error:JSON.stringify(d.error))+(d.body?' '+d.body:''));es.close();es=null});
+  es.addEventListener('update',e=>{const p=JSON.parse(e.data);const u=p.data?.secretValue;if(!u){banner('Subscription error: '+JSON.stringify(p.errors));return}
+    banner('');const v=$('#subval');v.textContent=u.secret.exists?u.secret.value:'(unavailable) '+(u.secret.error||'');v.classList.remove('flash');void v.offsetWidth;v.classList.add('flash');
+    $('#subhist').prepend(el('li',{},el('span',{class:'mut'},new Date(u.observedAt).toLocaleTimeString()+'  '),
+      u.previousValue!=null?[el('code',{class:'val'},u.previousValue),' → ']:'initial: ',el('code',{class:'val'},u.secret.value??'(none)'),
+      el('span',{class:'mut'},`  #${u.sequence} via ${u.secret.method||'?'}`)))});
+};
+
+// ---- config
+async function loadConfig(){
+  const w=await (await fetch('/bff/web-config')).json();webCfg=w;
+  const e=w.effective;
+  $('#cfg-web').replaceChildren(dl({version:w.version,'app name':e.appName,scenario:e.scenario,description:e.description,'API URL':e.apiUrl,'SPIFFE enabled':String(e.spiffe.enabled),'SPIFFE audience':e.spiffe.audience,'refresh (ms)':e.refreshIntervalMs}),
+    el('h3',{},'Pod'),dl(w.runtime),el('h3',{},'Labels'),pre(e.labels),el('h3',{},'ConfigMap file: '+w.configFile),pre(w.rawFile??'(no file mounted; defaults in use)'),el('h3',{},'Effective config'),pre(e));
+  const r=await gql('{ config { appName scenario description version watchIntervalMs spiffeEnabled configFile rawFile effective runtime { podName namespace nodeName serviceAccount hostname } } }');
+  const err=apiError(r);banner(err);if(err){$('#cfg-api').replaceChildren(el('p',{class:'mut'},'Unavailable: '+err));return}
+  const c=r.body.data.config;
+  $('#cfg-api').replaceChildren(dl({version:c.version,'app name':c.appName,scenario:c.scenario,description:c.description,'SPIFFE enabled':String(c.spiffeEnabled),'watch interval (ms)':c.watchIntervalMs}),
+    el('h3',{},'Pod'),dl(c.runtime),el('h3',{},'ConfigMap file: '+c.configFile),pre(c.rawFile??'(no file mounted; defaults in use)'),el('h3',{},'Effective config'),pre(c.effective))}
+
+// ---- spiffe
+const x509Card=(title,x)=>el('div',{class:'card'},el('h2',{},title),dl({'SPIFFE ID':x.spiffeId,'trust domain':x.trustDomain,serial:x.serial,subject:x.subject,issuer:x.issuer,'not before':x.notBefore,'not after':x.notAfter,'expires in (s)':x.expiresInSecs,'SAN URIs':x.sanUris.join(', '),'sig. algorithm OID':x.signatureAlgorithm,'chain length':x.chainLength}),el('h3',{},'Certificate (PEM)'),pre(x.certificatePem));
+async function loadSpiffe(){
+  const w=await (await fetch('/bff/web-config')).json();
+  const sp=await (await fetch('/bff/spiffe')).json();
+  const idr=await gql('{ identity { spiffeEnabled audience allowedIds caller ownX509 error } }');
+  const id=idr.body?.data?.identity;
+  const st=$('#sp-status');
+  st.replaceChildren(el('p',{},'Web → API calls: ',sp.enabled?badge('SPIFFE enabled (JWT-SVID)','ok'):badge('SPIFFE disabled (no credentials sent)','warn')),
+    el('p',{},'API requires SPIFFE: ',id?(id.spiffeEnabled?badge('yes','ok'):badge('no — open access','warn')):badge('unknown','bad'),
+      id?.audience?[' audience ',el('code',{class:'val'},id.audience)]:'',id?.allowedIds?.length?[' allowed IDs: ',el('code',{class:'val'},id.allowedIds.join(', '))]:''),
+    !sp.enabled&&id?.spiffeEnabled?el('p',{class:'mut'},'The web is not presenting an identity but the API requires one: expect every call to be rejected. Enable spiffe in the web ConfigMap.'):null);
+  const g=$('#sp-grid');g.replaceChildren();
+  if(!sp.enabled){g.append(el('div',{class:'card'},el('p',{class:'mut'},'Enable SPIFFE (spiffe.enabled: true) in both ConfigMaps to see SVID details here. You can still run the authorisation test: with SPIFFE off on the API the unauthenticated call succeeds.')));return}
+  if(sp.error)banner('SPIFFE: '+sp.error);
+  if(sp.x509)g.append(x509Card('This web app: X.509-SVID',sp.x509));if(sp.x509Error)g.append(el('div',{class:'card'},el('h2',{},'X.509-SVID'),badge(sp.x509Error,'bad')));
+  if(sp.jwt){const j=sp.jwt;g.append(el('div',{class:'card'},el('h2',{},'This web app: JWT-SVID (sent to the API)'),
+    dl({'SPIFFE ID (sub)':j.spiffeId,audience:j.audience.join(', '),'issued at':j.issuedAt?new Date(j.issuedAt*1000).toISOString():'','expires at':j.expiresAt?new Date(j.expiresAt*1000).toISOString():'','expires in (s)':j.expiresInSecs}),
+    el('h3',{},'Header'),pre(j.header),el('h3',{},'Claims'),pre(j.claims),el('h3',{},'Token'),pre(j.token)))}
+  if(sp.jwtError)g.append(el('div',{class:'card'},el('h2',{},'JWT-SVID'),badge(sp.jwtError,'bad')));
+  if(id?.caller)g.append(el('div',{class:'card'},el('h2',{},'How the API sees this caller'),el('p',{class:'mut'},'Validated by the API through the SPIFFE Workload API.'),pre(id.caller)));
+  if(id?.ownX509)g.append(x509Card('API: its own X.509-SVID',id.ownX509))}
+$('#sp-reload').onclick=loadSpiffe;
+$('#probe').onclick=async()=>{const b=$('#probe');b.disabled=true;
+  const p=await (await fetch('/bff/probe')).json();
+  const t=el('table');t.append(el('tr',{},...['Attempt','Credentials sent','Result','Response'].map(h=>el('th',{},h))));
+  for(const r of p.results)t.append(el('tr',{},el('td',{},el('b',{},r.label),el('div',{class:'mut'},r.description)),el('td',{class:'mono'},r.sent),
+    el('td',{},badge(r.status?('HTTP '+r.status):'no response',r.ok?'ok':'bad')),el('td',{},pre(r.body))));
+  $('#probes').replaceChildren(el('h3',{},'Authorisation test'),t);b.disabled=false};
+
+// ---- boot
+(async()=>{
+  const w=await (await fetch('/bff/web-config')).json();webCfg=w;const e=w.effective;
+  document.title=e.appName;$('#title').textContent=e.appName;$('#scen').textContent='scenario: '+e.scenario;
+  const s=$('#sp');s.textContent=e.spiffe.enabled?'SPIFFE on':'SPIFFE off';s.className='badge '+(e.spiffe.enabled?'ok':'warn');
+  $('#pod').textContent=[w.runtime.namespace,w.runtime.podName||w.runtime.hostname].filter(Boolean).join('/');
+  const h=(location.hash||'#secrets').slice(1);show(TABS.some(t=>t[0]===h)?h:'secrets');
+  loadSecrets();if(e.refreshIntervalMs>0)setInterval(()=>{if(!$('#t-secrets').hidden)loadSecrets()},e.refreshIntervalMs)})();
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+# Secrets Store CSI driver + Vault provider. Install the driver with
+#   --set enableSecretRotation=true --set rotationPollInterval=15s
+# so that changes in Vault reach the mounted file (and the synced Kubernetes Secret).
+# Vault role/policy: as in 02-vault-agent-injector.yaml (role bound to the <release>-api SA).
+scenario: vault-csi
+demoSecret: {enabled: false}
+api:
+  volumes:
+    - name: secrets-store
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes: {secretProviderClass: "{{ .Release.Name }}-vault"}
+  volumeMounts:
+    - {name: secrets-store, mountPath: /mnt/secrets-store, readOnly: true}
+  # the synced Kubernetes Secret (created by secretObjects below) only exists once the volume is mounted
+  env:
+    - name: DEMO_SECRET_CSI_SYNCED
+      valueFrom: {secretKeyRef: {name: "{{ .Release.Name }}-csi-synced", key: password}}
+  config:
+    description: Vault via Secrets Store CSI (file mount + synced K8s Secret as env)
+    secrets:
+      - {name: csi-synced-env, method: csi-synced-k8s-secret-env, kind: env, source: DEMO_SECRET_CSI_SYNCED}
+    secretDirs:
+      - {path: /mnt/secrets-store, method: vault-csi-file}
+    envPrefixes: []
+extraObjects:
+  - apiVersion: secrets-store.csi.x-k8s.io/v1
+    kind: SecretProviderClass
+    metadata: {name: "{{ .Release.Name }}-vault"}
+    spec:
+      provider: vault
+      parameters:
+        vaultAddress: http://vault.vault.svc:8200
+        roleName: secrets-demo
+        objects: |
+          - objectName: db-password
+            secretPath: secret/data/secrets-demo/db
+            secretKey: password
+      secretObjects:
+        - secretName: "{{ .Release.Name }}-csi-synced"
+          type: Opaque
+          data: [{objectName: db-password, key: password}]

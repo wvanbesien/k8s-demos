@@ -1,0 +1,110 @@
+# ---------------------------------------------------------------------------
+# Images (published to GHCR by .github/workflows/release.yml)
+# ---------------------------------------------------------------------------
+image:
+  pullPolicy: IfNotPresent
+  api:
+    repository: ghcr.io/wvanbesien/secrets-demo-api
+    tag: ""                                      # defaults to Chart.appVersion
+  web:
+    repository: ghcr.io/wvanbesien/secrets-demo-web
+    tag: ""
+imagePullSecrets: []
+
+# Free-text label shown in both UIs; use it to name the scenario under test.
+scenario: k8s-secrets
+
+# ---------------------------------------------------------------------------
+# SPIFFE (OFF by default; not needed for secrets-only tests).
+# Product-neutral: the apps only use the standard SPIFFE Workload API, so any
+# SVID issuer that exposes it to pods works. When enabled, the API requires a
+# JWT-SVID from callers and the web presents one.
+# ---------------------------------------------------------------------------
+spiffe:
+  enabled: false
+  trustDomain: example.org   # only used to derive the default allowedIds below
+  audience: secrets-demo-api
+  # How the Workload API socket reaches the pods. Any volume source; default is the
+  # SPIFFE CSI driver. Replace with whatever your SVID product uses (hostPath, its own CSI driver...).
+  workloadApiVolume:
+    csi: {driver: csi.spiffe.io, readOnly: true}
+  socketDir: /spiffe-workload-api     # mount path inside the pods
+  socketName: spire-agent.sock        # default; # socket file name inside that dir (match your product)
+  # SPIFFE IDs allowed to call the API. Empty = derive from the web's service account:
+  #   spiffe://<trustDomain>/ns/<namespace>/sa/<web service account>
+  # Set explicitly if your issuer uses a different ID scheme.
+  allowedIds: []
+
+# ---------------------------------------------------------------------------
+# API
+# ---------------------------------------------------------------------------
+api:
+  replicas: 1
+  nodePort: 30080            # null = let Kubernetes choose
+  serviceAccount:
+    create: true
+    name: ""                 # defaults to <release>-api
+    annotations: {}
+  podAnnotations: {}         # e.g. vault.hashicorp.com/agent-inject: "true"
+  podLabels: {}
+  env: []                    # extra container env (list of EnvVar)
+  envFrom: []                # extra envFrom (list of EnvFromSource)
+  volumes: []                # extra pod volumes
+  volumeMounts: []           # extra volumeMounts for the API container
+  extraContainers: []        # sidecars (e.g. Conjur secrets-provider)
+  initContainers: []
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+  # Rendered verbatim into the API's ConfigMap (config.yaml).
+  # See the README for every option.
+  config:
+    description: Secrets delivered as a plain Kubernetes Secret (env + volume)
+    watchIntervalMs: 1000
+    # explicit secrets:  {name, method, kind: env|file, source}
+    secrets: []
+    # every file below path is a secret:  {path, method, namePrefix}
+    secretDirs:
+      - {path: /secrets/k8s-volume, method: k8s-secret-volume, namePrefix: "volume/"}
+    # every env var starting with prefix is a secret:  {prefix, method, namePrefix}
+    envPrefixes:
+      - {prefix: DEMO_SECRET_, method: k8s-secret-env, namePrefix: "env/"}
+    labels: {}
+
+# A self-contained Kubernetes Secret so the demo works with no external system.
+# Disable when you want a secrets manager to be the only source.
+demoSecret:
+  enabled: true
+  data:
+    DB_PASSWORD: s3cr3t-from-k8s
+    API_KEY: demo-api-key-12345
+  # exposed as env (prefix DEMO_SECRET_) and as files in /secrets/k8s-volume
+  mountAsEnv: true
+  mountAsVolume: true
+
+# ---------------------------------------------------------------------------
+# Web
+# ---------------------------------------------------------------------------
+web:
+  replicas: 1
+  nodePort: 30081
+  serviceAccount:
+    create: true
+    name: ""                 # defaults to <release>-web
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  env: []
+  envFrom: []
+  volumes: []
+  volumeMounts: []
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+  config:
+    description: ""
+    refreshIntervalMs: 5000
+    labels: {}
+
+# Any extra manifests (templated with tpl): SecretProviderClass, ExternalSecret, ...
+extraObjects: []
