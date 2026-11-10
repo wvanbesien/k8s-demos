@@ -44,9 +44,9 @@ spec:
             {{- if .Values.spiffe.enabled }}
             - {name: SPIFFE_ENDPOINT_SOCKET, value: {{ include "sd.socket" . }}}
             {{- end }}
-            {{- with .Values.web.env }}{{ toYaml . | nindent 12 }}{{ end }}
+            {{- with .Values.web.env }}{{ tpl (toYaml .) $ | nindent 12 }}{{ end }}
           {{- with .Values.web.envFrom }}
-          envFrom: {{ toYaml . | nindent 12 }}
+          envFrom: {{ tpl (toYaml .) $ | nindent 12 }}
           {{- end }}
           readinessProbe: {httpGet: {path: /healthz, port: http}}
           livenessProbe: {httpGet: {path: /healthz, port: http}}
@@ -56,14 +56,14 @@ spec:
             {{- if .Values.spiffe.enabled }}
             - {name: spiffe-workload-api, mountPath: {{ .Values.spiffe.socketDir }}, readOnly: true}
             {{- end }}
-            {{- with .Values.web.volumeMounts }}{{ toYaml . | nindent 12 }}{{ end }}
+            {{- with .Values.web.volumeMounts }}{{ tpl (toYaml .) $ | nindent 12 }}{{ end }}
       volumes:
         - name: config
           configMap: {name: {{ include "sd.webName" . }}}
         {{- if .Values.spiffe.enabled }}
         {{- include "sd.spiffeVolume" . | nindent 8 }}
         {{- end }}
-        {{- with .Values.web.volumes }}{{ toYaml . | nindent 8 }}{{ end }}
+        {{- with .Values.web.volumes }}{{ tpl (toYaml .) $ | nindent 8 }}{{ end }}
 ---
 apiVersion: v1
 kind: Service

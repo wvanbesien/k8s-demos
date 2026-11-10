@@ -33,7 +33,7 @@ spec:
       {{- end }}
       securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
       {{- with .Values.api.initContainers }}
-      initContainers: {{ toYaml . | nindent 8 }}
+      initContainers: {{ tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       containers:
         - name: api
@@ -47,7 +47,7 @@ spec:
             {{- if .Values.spiffe.enabled }}
             - {name: SPIFFE_ENDPOINT_SOCKET, value: {{ include "sd.socket" . }}}
             {{- end }}
-            {{- with .Values.api.env }}{{ toYaml . | nindent 12 }}{{ end }}
+            {{- with .Values.api.env }}{{ tpl (toYaml .) $ | nindent 12 }}{{ end }}
           {{- $ef := .Values.api.envFrom }}
           {{- if or $ef (and .Values.demoSecret.enabled .Values.demoSecret.mountAsEnv) }}
           envFrom:
@@ -55,7 +55,7 @@ spec:
             - prefix: DEMO_SECRET_
               secretRef: {name: {{ include "sd.name" . }}-demo}
             {{- end }}
-            {{- with $ef }}{{ toYaml . | nindent 12 }}{{ end }}
+            {{- with $ef }}{{ tpl (toYaml .) $ | nindent 12 }}{{ end }}
           {{- end }}
           readinessProbe: {httpGet: {path: /healthz, port: http}}
           livenessProbe: {httpGet: {path: /healthz, port: http}}
@@ -68,9 +68,9 @@ spec:
             {{- if .Values.spiffe.enabled }}
             - {name: spiffe-workload-api, mountPath: {{ .Values.spiffe.socketDir }}, readOnly: true}
             {{- end }}
-            {{- with .Values.api.volumeMounts }}{{ toYaml . | nindent 12 }}{{ end }}
+            {{- with .Values.api.volumeMounts }}{{ tpl (toYaml .) $ | nindent 12 }}{{ end }}
         {{- with .Values.api.extraContainers }}
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -82,7 +82,7 @@ spec:
         {{- if .Values.spiffe.enabled }}
         {{- include "sd.spiffeVolume" . | nindent 8 }}
         {{- end }}
-        {{- with .Values.api.volumes }}{{ toYaml . | nindent 8 }}{{ end }}
+        {{- with .Values.api.volumes }}{{ tpl (toYaml .) $ | nindent 8 }}{{ end }}
 ---
 apiVersion: v1
 kind: Service
