@@ -1,0 +1,29 @@
+{{- /* ---------------- API ---------------- */}}
+{{- $api := deepCopy .Values.api.config -}}
+{{- $_ := set $api "appName" (include "sd.apiName" .) -}}
+{{- $_ := set $api "scenario" .Values.scenario -}}
+{{- $apiSpiffe := dict "enabled" .Values.spiffe.enabled "audience" .Values.spiffe.audience "allowedIds" (include "sd.allowedIds" . | fromYamlArray) -}}
+{{- $_ := set $api "spiffe" $apiSpiffe -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sd.apiName" . }}
+  labels: {app.kubernetes.io/name: {{ include "sd.apiName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+data:
+  config.yaml: |
+{{ toYaml $api | indent 4 }}
+---
+{{- /* ---------------- Web ---------------- */}}
+{{- $web := deepCopy .Values.web.config -}}
+{{- $_ := set $web "appName" (include "sd.webName" .) -}}
+{{- $_ := set $web "scenario" .Values.scenario -}}
+{{- $_ := set $web "apiUrl" (printf "http://%s:8080" (include "sd.apiName" .)) -}}
+{{- $_ := set $web "spiffe" (dict "enabled" .Values.spiffe.enabled "audience" .Values.spiffe.audience) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sd.webName" . }}
+  labels: {app.kubernetes.io/name: {{ include "sd.webName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+data:
+  config.yaml: |
+{{ toYaml $web | indent 4 }}

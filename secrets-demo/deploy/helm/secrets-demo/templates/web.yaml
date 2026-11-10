@@ -1,0 +1,82 @@
+{{- if .Values.web.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "sd.webSA" . }}
+  {{- with .Values.web.serviceAccount.annotations }}
+  annotations: {{ toYaml . | nindent 4 }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sd.webName" . }}
+  labels: {app.kubernetes.io/name: {{ include "sd.webName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels: {app.kubernetes.io/name: {{ include "sd.webName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "sd.webName" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.web.podLabels }}{{ toYaml . | nindent 8 }}{{ end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
+        {{- with .Values.web.podAnnotations }}{{ toYaml . | nindent 8 }}{{ end }}
+    spec:
+      serviceAccountName: {{ include "sd.webSA" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: web
+          image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          ports: [{name: http, containerPort: 8080}]
+          env:
+            {{- include "sd.podEnv" . | nindent 12 }}
+            - {name: CONFIG_FILE, value: /etc/secrets-demo/config.yaml}
+            {{- if .Values.spiffe.enabled }}
+            - {name: SPIFFE_ENDPOINT_SOCKET, value: {{ include "sd.socket" . }}}
+            {{- end }}
+            {{- with .Values.web.env }}{{ toYaml . | nindent 12 }}{{ end }}
+          {{- with .Values.web.envFrom }}
+          envFrom: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe: {httpGet: {path: /healthz, port: http}}
+          livenessProbe: {httpGet: {path: /healthz, port: http}}
+          resources: {{ toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/secrets-demo, readOnly: true}
+            {{- if .Values.spiffe.enabled }}
+            - {name: spiffe-workload-api, mountPath: {{ .Values.spiffe.socketDir }}, readOnly: true}
+            {{- end }}
+            {{- with .Values.web.volumeMounts }}{{ toYaml . | nindent 12 }}{{ end }}
+      volumes:
+        - name: config
+          configMap: {name: {{ include "sd.webName" . }}}
+        {{- if .Values.spiffe.enabled }}
+        {{- include "sd.spiffeVolume" . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.web.volumes }}{{ toYaml . | nindent 8 }}{{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sd.webName" . }}
+  labels: {app.kubernetes.io/name: {{ include "sd.webName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+spec:
+  type: NodePort
+  selector: {app.kubernetes.io/name: {{ include "sd.webName" . }}, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      {{- if .Values.web.nodePort }}
+      nodePort: {{ .Values.web.nodePort }}
+      {{- end }}

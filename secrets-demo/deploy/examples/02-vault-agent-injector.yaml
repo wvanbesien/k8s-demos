@@ -1,0 +1,27 @@
+# HashiCorp Vault Agent Injector: the injector adds a Vault Agent sidecar that authenticates
+# with the pod's service account and renders secrets to files under /vault/secrets.
+# The agent re-renders on change, so the subscription in the web UI shows rotations live.
+#
+# Vault side (one-off):
+#   vault auth enable kubernetes
+#   vault write auth/kubernetes/config kubernetes_host=https://$KUBERNETES_SERVICE_HOST:443
+#   vault kv put secret/secrets-demo/db password=first-value
+#   vault policy write secrets-demo - <<<'path "secret/data/secrets-demo/*" { capabilities=["read"] }'
+#   vault write auth/kubernetes/role/secrets-demo bound_service_account_names=<release>-api \
+#       bound_service_account_namespaces=<ns> policies=secrets-demo ttl=1h
+# Rotate:  vault kv put secret/secrets-demo/db password=second-value
+scenario: vault-agent-injector
+demoSecret: {enabled: false}
+api:
+  podAnnotations:
+    vault.hashicorp.com/agent-inject: "true"
+    vault.hashicorp.com/role: secrets-demo
+    vault.hashicorp.com/agent-inject-secret-db-password: secret/data/secrets-demo/db
+    vault.hashicorp.com/agent-inject-template-db-password: |
+      {{- with secret "secret/data/secrets-demo/db" -}}{{ .Data.data.password }}{{- end -}}
+  config:
+    description: Vault Agent Injector renders secrets to /vault/secrets
+    secrets: []
+    secretDirs:
+      - {path: /vault/secrets, method: vault-agent-injector}
+    envPrefixes: []

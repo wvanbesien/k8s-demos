@@ -1,0 +1,14 @@
+# Overlay: enable SPIFFE on top of ANY scenario (not needed for secrets-only tests).
+#   helm upgrade --install demo ... -f 02-vault-agent-injector.yaml -f 10-spiffe.yaml
+# Product-neutral: the pods just need the SPIFFE Workload API socket from your SVID issuer.
+spiffe:
+  enabled: true
+  audience: secrets-demo-api
+  # Adapt these three to your SVID product:
+  workloadApiVolume:
+    csi: {driver: csi.spiffe.io, readOnly: true}   # or e.g. hostPath: {path: /run/your-agent, type: Directory}
+  socketDir: /spiffe-workload-api
+  socketName: spire-agent.sock
+  # Authorisation: the SPIFFE ID your issuer gives the web pod (default assumes spiffe://<td>/ns/<ns>/sa/<release>-web).
+  trustDomain: example.org
+  allowedIds: []

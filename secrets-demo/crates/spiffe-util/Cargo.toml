@@ -1,0 +1,13 @@
+[package]
+name = "spiffe-util"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+spiffe = { version = "0.19", features = ["workload-api", "jwt", "x509"] }
+x509-parser = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+anyhow = "1"
