@@ -31,6 +31,23 @@ helm install demo deploy/helm/secrets-demo --set image.api.repository=ghcr.io/wv
 
 The default scenario needs nothing external: a chart-created K8s Secret delivered as env vars and as files.
 
+### Without Helm (plain YAML)
+
+`deploy/manifests/` holds the default scenario rendered from the chart (two Deployments, Services with
+NodePorts 30081 web / 30080 API, ConfigMaps, ServiceAccounts, demo Secret):
+
+```bash
+kubectl create namespace demo
+kubectl apply -k deploy/manifests -n demo          # or: kubectl apply -f deploy/manifests/secrets-demo.yaml -n demo
+```
+
+Change image tags in `deploy/manifests/kustomization.yaml`. To change the scenario, edit the two ConfigMaps in
+`secrets-demo.yaml` (then `kubectl rollout restart deploy -n demo`), or regenerate the file for another scenario:
+
+```bash
+helm template secrets-demo deploy/helm/secrets-demo -f deploy/examples/02-vault-agent-injector.yaml > deploy/manifests/secrets-demo.yaml
+```
+
 Run locally without Kubernetes:
 
 ```bash

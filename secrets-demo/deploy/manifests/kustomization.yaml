@@ -1,0 +1,11 @@
+# Plain-YAML deployment of the default scenario (K8s Secret as env + files, SPIFFE off).
+#   kubectl create namespace demo
+#   kubectl apply -k deploy/manifests -n demo        (or: kubectl apply -f secrets-demo.yaml -n demo)
+# Generated from the Helm chart: helm template secrets-demo deploy/helm/secrets-demo -f deploy/examples/01-k8s-secret.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [secrets-demo.yaml]
+# Change image location/tag here instead of editing the manifest:
+images:
+  - {name: ghcr.io/wvanbesien/secrets-demo-api, newTag: add-secrets-demo}
+  - {name: ghcr.io/wvanbesien/secrets-demo-web, newTag: add-secrets-demo}
