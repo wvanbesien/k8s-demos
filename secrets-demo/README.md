@@ -33,20 +33,17 @@ The default scenario needs nothing external: a chart-created K8s Secret delivere
 
 ### Without Helm (plain YAML)
 
-`deploy/manifests/` holds the default scenario rendered from the chart (two Deployments, Services with
-NodePorts 30081 web / 30080 API, ConfigMaps, ServiceAccounts, demo Secret):
+`deploy/manifests/secrets-demo.yaml` is the default scenario as one plain file (two Deployments, NodePort
+Services 30081 web / 30080 API, ConfigMaps, ServiceAccounts, demo Secret):
 
 ```bash
 kubectl create namespace demo
-kubectl apply -k deploy/manifests -n demo          # or: kubectl apply -f deploy/manifests/secrets-demo.yaml -n demo
+kubectl apply -f deploy/manifests/secrets-demo.yaml -n demo
 ```
 
-Change image tags in `deploy/manifests/kustomization.yaml`. To change the scenario, edit the two ConfigMaps in
-`secrets-demo.yaml` (then `kubectl rollout restart deploy -n demo`), or regenerate the file for another scenario:
-
-```bash
-helm template secrets-demo deploy/helm/secrets-demo -f deploy/examples/02-vault-agent-injector.yaml > deploy/manifests/secrets-demo.yaml
-```
+Edit the `image:` lines in the file to use a different tag or registry. To change the scenario, edit the two
+ConfigMaps in the file and run `kubectl rollout restart deploy -n demo`. (The file is generated from the chart
+with `helm template`, which you only need if you want to regenerate it for another scenario.)
 
 Run locally without Kubernetes:
 
